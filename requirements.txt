@@ -1,0 +1,18 @@
+# web app
+Flask==3.0.3
+werkzeug==3.0.4
+# docx processing
+python-docx==1.1.2
+language-tool-python==2.8.1
+# llm hub
+huggingface-hub==0.25.2
+
+# llama cpp python bindings
+llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/metal
+
+# for docx tracked changes
+git+https://github.com/JSv4/Python-Redlines
+
+# for typing/data validation
+pydantic == 2.8.2
+pydantic-settings == 2.3.4
