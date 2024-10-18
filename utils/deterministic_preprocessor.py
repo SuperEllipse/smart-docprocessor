@@ -3,6 +3,7 @@ import language_tool_python
 from copy import deepcopy
 from docx import Document
 from docx.shared import RGBColor, Pt
+from  doc_formatter import DocumentFormatter
 
 # Define light blue color for emails (RGB for light blue #ADD8E6)
 LIGHT_BLUE = RGBColor(173, 216, 230)
@@ -29,10 +30,11 @@ class DeterministicPreprocessor:
             "abbreviations": {"check_rank_abbreviations": True},
             "corrections": {"fix_automatically": True, "log_changes": True},
         }
-
+        
         # Initialize LanguageTool for English
         try:
             self.tool = language_tool_python.LanguageTool("en-AU")
+            self.tool.disabled_rules = ['MORFOLOGIK_RULE_EN_AU']            # to take care of issues with Proper nouns
         except Exception as e:
             raise RuntimeError(f"Error initializing LanguageTool: {e}")
 
@@ -269,9 +271,11 @@ class DeterministicPreprocessor:
     def pre_process_document(self, input_doc):
         try:
             # Create a deep copy of the input document
-            modified_doc = deepcopy(input_doc)
+            # modified_doc = deepcopy(input_doc)
+            modified_doc = input_doc
             log = []
-    
+            formatter = DocumentFormatter(input_doc, 'Smartdoc-preprocessor')
+
             # Process regular paragraphs in the document body
             for para in modified_doc.paragraphs:
                 if not para.text.strip():
@@ -279,7 +283,10 @@ class DeterministicPreprocessor:
     
                 # Apply rolling corrections to the paragraph
                 corrections = self.apply_rolling_corrections(para)
-    
+                for correction in corrections :
+                    if len(para.text) != 0:                    
+                        formatter.add_comment(para, comment_text=correction["issue"])
+                
                 if corrections:
                     log.append(
                         {"paragraph_text": para.text, "corrections": corrections}
@@ -295,7 +302,9 @@ class DeterministicPreprocessor:
     
                             # Apply rolling corrections to each paragraph inside the table
                             corrections = self.apply_rolling_corrections(para)
-    
+                            for correction in corrections :
+                                formatter.add_comment(para, comment_text=correction["issue"])
+                    
                             if corrections:
                                 log.append(
                                     {"paragraph_text": para.text, "corrections": corrections}
@@ -349,3 +358,5 @@ class DeterministicPreprocessor:
 
         print(f"Corrected document saved at: {corrected_file_path}")
         print(f"Correction log saved at: {log_file_path}")
+
+

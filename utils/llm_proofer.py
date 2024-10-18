@@ -4,6 +4,7 @@ from llama_cpp import Llama, ChatCompletionRequestMessage
 from copy import deepcopy
 from smartdoc_utils import process_llm_output
 from deterministic_preprocessor import DeterministicPreprocessor
+from doc_formatter import DocumentFormatter
 from config import settings
 from prompts import (
     karen_prompt,
@@ -140,6 +141,8 @@ def pre_process_document(input_doc, corrections_doc):
 
 def process_document_paragraphs(modified_doc, corrections_doc):
 
+    #instantiate the Formatter
+    formatter = DocumentFormatter(modified_doc, 'Smartdoc-LLM-processor')
     # modified_doc = deepcopy(input_doc)
     # Process each paragraph
     for para in modified_doc.paragraphs:
@@ -174,7 +177,13 @@ def process_document_paragraphs(modified_doc, corrections_doc):
                 run.font.color.rgb = original_runs[i].font.color.rgb
                 run.font.underline = original_runs[i].font.underline
                 # Add more formatting attributes as needed
-
+        
+        # add a comment if there are corrections
+        none_list = ['None', 'No corrections needed.', '[No corrections needed]']
+        if len(corrections) > 0  and  corrections not in none_list:
+            print("Added comment from LLM:", corrections)
+#            formatter.add_comment(para, corrections)
+        
         # Let us log the corrections made
         corrections_doc.add_paragraph()
         corrections_doc.add_paragraph(f"Original Text : \n {text}")
@@ -186,8 +195,8 @@ def process_document_paragraphs(modified_doc, corrections_doc):
 
 def process_document_tables(modified_doc, corrections_doc):
 
-    ## REPLACE this with logic of the modified doc
-    # modified_doc = deepcopy(input_doc)
+    #instantiate the Formatter
+    formatter = DocumentFormatter(modified_doc, 'Smartdoc-LLM-processor')
     # Iterate through all tables in the document
     for table in modified_doc.tables:
         print("IN Table")
@@ -217,14 +226,19 @@ def process_document_tables(modified_doc, corrections_doc):
                             if merged_cell._element is cell._element:
                                 printed_cells.add((merged_row_index, merged_cell_index))
 
-                # Append '**' to the text of the cell if not already processed
+
                 if cell.text.strip():  # Check if the cell is not empty
-                    #                    cell.text += '*T*B*L'
+                    #                    
                     for para in cell.paragraphs:
-                        # Add an asterisk (*) to the end of each cell paragraph
-                        print(para.text)
-                        # Just a small check to see that we processed this
-                        # para.add_run('*T')
+
+                        if not para.text.strip():
+                            print("Skipping LLM CALL:")
+                            continue
+                        else:
+                            # Get the text content
+                            text = para.text                        
+                        print(text)
+
 
                         # Store the original formatting
                         original_runs = para.runs.copy()
@@ -251,7 +265,13 @@ def process_document_tables(modified_doc, corrections_doc):
                                 run.font.color.rgb = original_runs[i].font.color.rgb
                                 run.font.underline = original_runs[i].font.underline
                                 # Add more formatting attributes as needed
-
+                        
+                        # add a comment if there are corrections
+                        none_list = ['None', 'No corrections needed.', '[No corrections needed]']
+                        if len(corrections) > 0  and  corrections not in none_list:
+                            print("Added comment from LLM:", corrections)
+#                            formatter.add_comment(para, corrections)
+                            
                         # Let us log the corrections made
                         corrections_doc.add_paragraph()
                         corrections_doc.add_paragraph(f"Original Text : \n {para.text}")
