@@ -1,4 +1,7 @@
+from copy import deepcopy
 import re
+import os
+from docx import Document
 
 model_input = """
 'I saw a    sample prodcut.  These product are below expeccted quality. I start to underdstand what he said is quite right. The correct valu is 12.5%% and 3rd postion. The time is 10:30am. The length of the object is 845mm and costs $1million. The sunise happens at 0750 EST and visibilty is 35 km. The right way too sumize and favor some advisor's is still to be found.'"""
@@ -142,3 +145,54 @@ def process_llm_output(response):
     print(corrections)
     print("DONE process_llm_output")
     return edited_text, corrections
+
+
+def build_file_name_extensions(input_file_path, extension="temp"):
+    """
+    Extracts the file name from a given path and creates new paths with specified suffixes.
+
+    Args:
+        input_file_path (str): The path to the file.
+        extension(str): name of the extension required
+
+    Returns:
+        tuple: A tuple containing the extracted file name, edited path, corrected path, and track changes path.
+
+    ## USAGE
+    orig_filename, new_filename, new_filename_with_path  = build_file_name_extensions("/home/cdsw/test.doc", "corrections") 
+    print(orig_filename, new_filename, new_filename_with_path ) # returns test.doc, test_corrections.doc, /home/cdsw/test_corrections.doc
+        
+    """
+    file_name = os.path.basename(input_file_path)
+    file_name_wo_ext = os.path.splitext(file_name)[0]
+    file_ext = os.path.splitext(file_name)[1]  # Get the file extension
+    new_file_name = f"{file_name_wo_ext}_{extension}{file_ext}"
+    new_file_path = os.path.join(os.path.dirname(input_file_path),new_file_name )
+    return file_name, new_file_name, new_file_path
+
+def create_track_changes_document(input_doc, edited_doc):
+    doc = Document(input_doc)
+    
+    # need a temp compy because input gets deleted
+    temp_doc = deepcopy(doc)
+    _,_, temp_input_doc = build_file_name_extensions(input_doc, "temp")
+    temp_doc.save(temp_input_doc)
+    
+    # need a temp copy of edit
+    doc = Document(edited_doc)
+    # need a temp compy because input gets deleted
+    temp_doc = deepcopy(doc)
+    _,_, temp_edited_doc = build_file_name_extensions(edited_doc, "temp")
+    temp_doc.save(temp_edited_doc)
+    
+    # apply track changes
+    
+    from python_redlines.engines import XmlPowerToolsEngine
+    wrapper = XmlPowerToolsEngine()
+
+    output_trackchanges = wrapper.run_redline('Smartdoc Processor', temp_input_doc, temp_edited_doc)
+    _,_, trackchanges_doc = build_file_name_extensions(edited_doc, "trackchanges")
+    with open(trackchanges_doc, 'wb') as f:
+        f.write(output_trackchanges[0])   
+    
+    return trackchanges_doc
