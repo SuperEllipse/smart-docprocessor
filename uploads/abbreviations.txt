@@ -1,0 +1,4 @@
+CAPT||Captain
+CMDR||Commander
+UK||United Kingdom
+GB||Great Britain
