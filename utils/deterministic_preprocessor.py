@@ -4,10 +4,13 @@ from copy import deepcopy
 from docx import Document
 from docx.shared import RGBColor, Pt
 from  doc_formatter import DocumentFormatter
+import os
 
 # Define light blue color for emails (RGB for light blue #ADD8E6)
 LIGHT_BLUE = RGBColor(173, 216, 230)
-
+UPLOADS_FOLDER_PATH = '/home/cdsw/uploads'
+ABBREVIATIONS_FILE = os.path.join(UPLOADS_FOLDER_PATH, 'abbreviations.txt')
+EXPANSIONS_FILE = os.path.join(UPLOADS_FOLDER_PATH, 'expansions.txt')
 class DeterministicPreprocessor:
     def __init__(self):
         self.style_guide = {
@@ -38,6 +41,10 @@ class DeterministicPreprocessor:
         except Exception as e:
             raise RuntimeError(f"Error initializing LanguageTool: {e}")
 
+
+        self.abbreviations_dict = self.load_mappings(ABBREVIATIONS_FILE)
+        self.expansions_dict = self.load_mappings(EXPANSIONS_FILE)        
+        
     def get_paragraph_font_info(self, paragraph):
         try:
             if paragraph.runs:
@@ -67,27 +74,103 @@ class DeterministicPreprocessor:
             "font_color": font_color,
         }
 
-    def detect_abbreviations(self, paragraph):
-        corrections = []
-        try:
-            text = paragraph.text
-            abbrev_pattern = r"\b[A-Z]{2,}\b"
-            abbreviations = re.findall(abbrev_pattern, text)
+    # def detect_abbreviations(self, paragraph):
+    #     corrections = []
+    #     try:
+    #         text = paragraph.text
+    #         abbrev_pattern = r"\b[A-Z]{2,}\b"
+    #         abbreviations = re.findall(abbrev_pattern, text)
 
-            for abbr in abbreviations:
-                matches = self.tool.check(abbr)
-                if not matches:
+    #         for abbr in abbreviations:
+    #             matches = self.tool.check(abbr)
+    #             if not matches:
+    #                 corrections.append(
+    #                     {
+    #                         "before": abbr,
+    #                         "after": "Requires full form on first occurrence",
+    #                         "text": paragraph.text,
+    #                         "issue": f"Abbreviation '{abbr}' detected. Ensure full form is used on first occurrence.",
+    #                     }
+    #                 )
+    #     except Exception as e:
+    #         raise RuntimeError(f"Error detecting abbreviations: {e}")
+
+    #     return corrections
+
+    def load_mappings(self,file_path):
+        mapping_dict = {}
+        try:
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"File not found: {file_path}")
+
+            with open(file_path, 'r') as file:
+                for line in file:
+                    line = line.strip()
+                    if not line or line.startswith('#'):  # Skip empty lines and comments
+                        continue
+                    try:
+                        key, value = line.split('||')
+                        mapping_dict[key] = value
+                    except ValueError as e:
+                        raise ValueError(f"Invalid line format in {file_path}: {line}") from e
+        except Exception as e:
+            raise Exception(f"Error loading mapping files for Abbreviations & Expansions from {file_path}: {e}") from e
+        return mapping_dict
+
+    def expand_abbreviations(self, paragraph):
+        """
+        Replace abbreviations with their expanded forms.
+        Returns modified text and a list of corrections made.
+        """
+        corrections  = []
+        try: 
+            text = paragraph.text
+            corrected_text=text
+            for abbr, expansion in self.abbreviations_dict.items():
+                if abbr in corrected_text:
+                    corrected_text = corrected_text.replace(abbr, expansion)
                     corrections.append(
                         {
-                            "before": abbr,
-                            "after": "Requires full form on first occurrence",
+                            "before": text,
+                            "after": corrected_text,
                             "text": paragraph.text,
-                            "issue": f"Abbreviation '{abbr}' detected. Ensure full form is used on first occurrence.",
+                            "issue": f"Abbreviation: {abbr} needs to be expanded to: {expansion}"
                         }
                     )
-        except Exception as e:
-            raise RuntimeError(f"Error detecting abbreviations: {e}")
+            if text != corrected_text :
+                paragraph.clear()  # Remove old text
+                paragraph.add_run(corrected_text)  # Add corrected text  
+        except Exception as e: 
+            raise RuntimeError (f"Error processing Abbreviations:{e}")
 
+        return corrections
+
+    def reduce_expansions(self, paragraph):
+        """
+        Replace full names with their abbreviations.
+        Returns modified text and a list of corrections made.
+        """
+        corrections  = []
+        try:
+            text = paragraph.text
+            corrected_text = paragraph.text
+            for full_name, acronym in self.expansions_dict.items():
+                if full_name in corrected_text:
+                    corrected_text = corrected_text.replace(full_name, acronym)
+
+            if text != corrected_text:
+                correction = {
+                    "before": text,
+                    "after": corrected_text,
+                    "text": paragraph.text,
+                    "issue": f"Expansion: {full_name} needs an acronym: {acronym}"
+                }
+                corrections.append(correction)                      
+                paragraph.clear()  # Remove old text
+                paragraph.add_run(corrected_text)  # Add corrected text                           
+        except Exception as e: 
+            raise RuntimeError (f"Error processing expansions:{e}") 
+           
         return corrections
 
     def correct_spelling_and_grammar(self, paragraph, proper_nouns):
@@ -247,6 +330,8 @@ class DeterministicPreprocessor:
 
         return corrections
 
+
+
     def apply_rolling_corrections(self, paragraph):
         """
         Apply all corrections one by one in a rolling manner.
@@ -262,7 +347,9 @@ class DeterministicPreprocessor:
         corrections_log += self.correct_font_color(paragraph)
         corrections_log += self.correct_font_family(paragraph)
         corrections_log += self.correct_numeral_symbol_spacing(paragraph)
-        corrections_log += self.detect_abbreviations(paragraph)
+        corrections_log += self.expand_abbreviations(paragraph)
+        corrections_log += self.reduce_expansions(paragraph)
+#        corrections_log += self.detect_abbreviations(paragraph)
         corrections_log += self.format_emails(paragraph)
         corrections_log += self.correct_spelling_and_grammar(paragraph, proper_nouns)
 

@@ -50,9 +50,20 @@ model_input_2 = """
 """
 
 model_output_2 = """
-1. Edited Text: 
+1. Edited Text: 'I have a book called "The Sun Also Rises". The book is about a group of American and British expatriates who travel from Paris to Pamplona to watch the running of the bulls and the bullfights. The book was published in 1926 and was written by Ernest Hemingway. The main characters are Jake Barnes, Lady Brett Ashley, Robert Cohn, and Pedro Romero. The book is considered one of Hemingway's masterpieces and is a classic of American literature.'
 
-2. Corrections:
+2. Corrections: None
+"""
+
+
+model_input_3 = """
+'Jack and Jill went up the hill to fetch a pail of water'
+"""
+
+model_output_3 = """
+1. Edited Text: 'Jack and Jill went up the hill to fetch a pail of water'
+
+2. Corrections: None
 """
 
 model_input_3 = """

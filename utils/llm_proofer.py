@@ -179,10 +179,10 @@ def process_document_paragraphs(modified_doc, corrections_doc):
                 # Add more formatting attributes as needed
         
         # add a comment if there are corrections
-        none_list = ['None', 'No corrections needed.', '[No corrections needed]']
-        if len(corrections) > 0  and  corrections not in none_list:
+        none_list = ['None', 'No corrections needed.', '[No corrections needed]', '']
+        if len(para.text) != 0 and  corrections.strip() not in none_list:
             print("Added comment from LLM:", corrections)
-#            formatter.add_comment(para, corrections)
+            formatter.add_comment(para, corrections)
         
         # Let us log the corrections made
         corrections_doc.add_paragraph()
@@ -267,10 +267,10 @@ def process_document_tables(modified_doc, corrections_doc):
                                 # Add more formatting attributes as needed
                         
                         # add a comment if there are corrections
-                        none_list = ['None', 'No corrections needed.', '[No corrections needed]']
-                        if len(corrections) > 0  and  corrections not in none_list:
+                        none_list = ['None', 'No corrections needed.', '[No corrections needed]', '']
+                        if len(corrections) > 0  and  corrections.strip() not in none_list:
                             print("Added comment from LLM:", corrections)
-#                            formatter.add_comment(para, corrections)
+                            formatter.add_comment(para, corrections)
                             
                         # Let us log the corrections made
                         corrections_doc.add_paragraph()
